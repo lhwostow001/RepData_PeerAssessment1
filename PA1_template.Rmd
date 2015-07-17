@@ -1,25 +1,119 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template.Rmd"
+output: html_document
 ---
 
+# Reproducible Research Course
+## Peer Assessment 1
 
-## Loading and preprocessing the data
+```{r, echo=FALSE, message=FALSE}
+library('dplyr')
+library('ggplot2')
+library('scales')
+library('lattice')
+```
+Load and preprocess the data.
+```{r, echo=TRUE}
+setwd("C:/Users/")
+rawtable <- read.csv('activity.csv', header = TRUE, sep = ",")
+by_date <- group_by(rawtable, date)
+num_steps <- summarise(by_date, sum(steps, na.rm = TRUE))
+colnames(num_steps) <- c("date", "steps")
+num_steps$date <- as.Date(num_steps$date)
+```
+Make a histogram of the total number of steps taken each day.
+```{r, echo=TRUE}
+bin <- 2
+p <- ggplot(num_steps, aes(date, steps))
+p <- p + geom_histogram(stat = "identity", binwidth = bin, colour = "white")
+p <- p + scale_x_date(breaks = seq(min(num_steps$date)-10,
+                                   max(num_steps$date),
+                                   bin),
+                      labels = date_format("%m-%d-%Y"),
+                      limits = c(as.Date("2012-10-01"),
+                                 as.Date("2012-11-30")))
+p <- p + theme_bw() + xlab(NULL) + theme(axis.text.x  = element_text(angle=45,
+                                                                  hjust = 1,
+                                                                  vjust = 1))
+p <- p + labs(title = "Total Number of Steps Taken per Day Using Raw Data") 
+p
+```
+  
+Calculate and report the mean and median of the total number of steps taken each day.
+```{r, echo=TRUE}
+cat("The mean of the total number of steps is ", mean(num_steps$steps, na.rm = TRUE))
+cat("The median of the total number of steps is ", median(num_steps$steps, na.rm = TRUE))
+```
+Make a time series plot of the 5-minute interval (x-axis)
+and the average number of steps taken, averaged across all days (y-axis).
+```{r, echo=TRUE}
+by_interval <- group_by(rawtable, interval)
+mean_interval <- summarise(by_interval, mean(steps, na.rm = TRUE))
+colnames(mean_interval) <- c("interval", "meansteps")
+plot(mean_interval$interval, mean_interval$meansteps, xaxp  = c(0, 2400, 100), 
+     xlab = "5 Minute Interval", ylab = "Average Number of Steps", 
+     main = "Average Number of Steps from 10-1-12 to 11-30-12", type = "l")
+```
+  
+```{r, echo=TRUE}
+sort_mean_interval <- mean_interval[order(-mean_interval$meansteps),]
+max_interval <- as.numeric(sort_mean_interval[1,1])
+cat("The 5 minute interval that has the maximum number of steps is", max_interval)
+num_nas <- colSums(is.na(rawtable))
+cat("The number of missing values in the dataset is", num_nas[1])
+```
+  
+Create a new imputed data set with the missing values filled in.
+The strategy to fill in the missing data used the mean of each interval. 
+```{r, echo=TRUE}
+imput_table <- rawtable
+for(i in 1:dim(imput_table)[1])
+        if (is.na(imput_table[i,1]))
+                  imput_table[i,1] = mean_interval[which(mean_interval$interval == imput_table[i,3]),2]
+```
+Calculate the total number of steps taken each day.
+```{r, echo=TRUE}
+imput_by_date <- group_by(imput_table, date)
+imput_num_steps <- summarise(imput_by_date, sum(steps))
+```
 
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+Make a histogram of the total number of steps taken each day using the imputed data.
+```{r, echo=TRUE}
+colnames(imput_num_steps) <- c("date", "steps")
+imput_num_steps$date <- as.Date(imput_num_steps$date)
+bin <- 2
+imput_plot <- ggplot(imput_num_steps, aes(date, steps))
+imput_plot <- imput_plot + geom_histogram(stat = "identity", binwidth = bin, colour = "white")
+imput_plot <- imput_plot + scale_x_date(breaks = seq(min(imput_num_steps$date)-10,
+                                   max(imput_num_steps$date),
+                                   bin),
+                      labels = date_format("%m/%d/%Y"),
+                      limits = c(as.Date("2012-10-01"),
+                                 as.Date("2012-11-30")))
+imput_plot <- imput_plot + theme_bw() + xlab(NULL) + theme(axis.text.x  = element_text(angle=45,
+                                                                     hjust = 1,
+                                                                     vjust = 1))
+imput_plot <- imput_plot + labs(title = "Total Number of Steps Taken per Day Using Imputed Data")
+imput_plot
+```
+  
+Calculate and report the mean and median of the total number of steps taken each day.
+```{r, echo=TRUE}
+cat("The mean of the total number of steps is ", mean(imput_num_steps$steps, na.rm = TRUE))
+cat("The median of the total number of steps is ", median(imput_num_steps$steps, na.rm = TRUE))
+```
+Compare values between the raw data set and the imputed data set.
+```{r, echo=TRUE}
+cat("The mean of the total number of steps in the raw data set is ", mean(num_steps$steps, na.rm = TRUE))
+cat("The mean of the total number of steps in the imputed data set is ", mean(imput_num_steps$steps, na.rm = TRUE))
+cat("The median of the total number of steps in the raw data set is ", median(num_steps$steps, na.rm = TRUE))
+cat("The median of the total number of steps in the imputed data set is ", median(imput_num_steps$steps, na.rm = TRUE))
+```
+Determine if there are differences in activity patterns between weekdays and weekends.
+```{r, echo=TRUE}
+imput_table$date <- as.Date(imput_table$date)
+imput_table$day <- weekdays(imput_table$date)
+imput_table$day <- ifelse(imput_table$day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+imput_table <- transform(imput_table, day = factor(day))
+xyplot(steps ~ interval | day, data = imput_table, type = "l", layout = c(1,2))
+```
