@@ -7,7 +7,7 @@
 Load and preprocess the data.
 
 ```r
-setwd("C:/Users/")
+setwd("C:/Users/Agilex01/Documents/Data")
 rawtable <- read.csv('activity.csv', header = TRUE, sep = ",")
 by_date <- group_by(rawtable, date)
 num_steps <- summarise(by_date, sum(steps, na.rm = TRUE))
